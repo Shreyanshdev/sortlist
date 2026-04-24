@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sentence-transformers
+numpy
+pymupdf
+python-docx
+httpx
+boto3
+pydantic
+python-dotenv

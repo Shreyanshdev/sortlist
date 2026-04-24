@@ -1,0 +1,12 @@
+{
+  "name": "shortlist-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "nodemon --exec npx ts-node -r dotenv/config src/index.ts --watch src --ext ts",
+    "dev": "npx ts-node -r dotenv/config src/index.ts",
+    "seed": "npx ts-node -r dotenv/config src/seed.ts",
+    "reset": "npx ts-node -r dotenv/config src/reset-stuck.ts",
+    "build": "npx tsc"
+  }
+}
