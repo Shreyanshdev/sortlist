@@ -77,16 +77,16 @@ async function seed() {
 
   // ─── CANDIDATES (10) ───
   const candidateData = [
-    { name: 'Aarav Patel',       email: 'aarav@gmail.com',      github: 'https://github.com/aaravp',    leetcode: 'https://leetcode.com/aaravp' },
-    { name: 'Diya Krishnan',     email: 'diya@gmail.com',       github: 'https://github.com/diyak',     leetcode: 'https://leetcode.com/diyak' },
-    { name: 'Arjun Reddy',       email: 'arjun@gmail.com',      github: 'https://github.com/arjunr',    leetcode: '' },
-    { name: 'Meera Nair',        email: 'meera@gmail.com',      github: '',                              leetcode: 'https://leetcode.com/meeran' },
-    { name: 'Rohan Desai',       email: 'rohan@gmail.com',      github: 'https://github.com/rohand',    leetcode: 'https://leetcode.com/rohand' },
-    { name: 'Ishita Banerjee',   email: 'ishita@gmail.com',     github: 'https://github.com/ishitab',   leetcode: '' },
+    { name: 'Aarav Patel',       email: 'aarav@gmail.com',      github: 'https://github.com/torvalds',    leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Diya Krishnan',     email: 'diya@gmail.com',       github: 'https://github.com/gaearon',     leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Arjun Reddy',       email: 'arjun@gmail.com',      github: 'https://github.com/tj',          leetcode: '' },
+    { name: 'Meera Nair',        email: 'meera@gmail.com',      github: '',                              leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Rohan Desai',       email: 'rohan@gmail.com',      github: 'https://github.com/shreyanshdodev', leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Ishita Banerjee',   email: 'ishita@gmail.com',     github: 'https://github.com/ryanb',       leetcode: '' },
     { name: 'Karan Chopra',      email: 'karan@gmail.com',      github: '',                              leetcode: '' },
-    { name: 'Sneha Iyer',        email: 'sneha@gmail.com',      github: 'https://github.com/snehai',    leetcode: 'https://leetcode.com/snehai' },
-    { name: 'Aditya Verma',      email: 'aditya@gmail.com',     github: 'https://github.com/adityav',   leetcode: 'https://leetcode.com/adityav' },
-    { name: 'Kavya Menon',       email: 'kavya@gmail.com',      github: 'https://github.com/kavyam',    leetcode: '' },
+    { name: 'Sneha Iyer',        email: 'sneha@gmail.com',      github: 'https://github.com/shreyanshdodev', leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Aditya Verma',      email: 'aditya@gmail.com',     github: 'https://github.com/shreyanshdodev', leetcode: 'https://leetcode.com/shreyanshdodev' },
+    { name: 'Kavya Menon',       email: 'kavya@gmail.com',      github: 'https://github.com/shreyanshdodev', leetcode: '' },
   ];
 
   for (const c of candidateData) {
@@ -149,13 +149,15 @@ async function seed() {
     await jobs.insertOne({
       ...j,
       isActive: true,
+      enableGithubInspection: true,
+      enableLeetcodeInspection: true,
       analyseStatus: 'NOT_STARTED',
       applicantCount: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
   }
-  console.log('✅ 3 Sample Jobs created');
+  console.log('✅ 3 Sample Jobs created (GitHub & LeetCode inspection enabled)');
 
   console.log('\n🎉 Seed complete! See credentials.md for login details.');
   process.exit(0);

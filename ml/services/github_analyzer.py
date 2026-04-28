@@ -20,6 +20,7 @@ class GitHubAnalyzer:
         }
         if token:
             self.headers["Authorization"] = f"Bearer {token}"
+        self._cache = {}
 
     def extract_username(self, url: str) -> Optional[str]:
         match = re.search(r'github\.com/([A-Za-z0-9_.-]+)(?:/|$)', url)
@@ -29,6 +30,14 @@ class GitHubAnalyzer:
         username = self.extract_username(github_url)
         if not username:
             return {'score': None, 'error': 'Invalid GitHub URL'}
+
+        # ── Caching Logic ──────────────────────────────────────────────────
+        now_ts = datetime.now().timestamp()
+        if username in self._cache:
+            entry = self._cache[username]
+            if now_ts - entry['ts'] < 3600:  # 1 hour cache
+                print(f"[GitHub] Using cached result for {username}")
+                return entry['data']
 
         try:
             async with httpx.AsyncClient(timeout=10.0, headers=self.headers) as client:
@@ -41,6 +50,8 @@ class GitHubAnalyzer:
                 if user_resp.status_code == 404:
                     return {'score': None, 'error': f'GitHub user not found: {username}'}
                 if user_resp.status_code == 403:
+                    limit_reset = user_resp.headers.get("X-RateLimit-Reset")
+                    print(f"[GitHub] Rate limit hit. Resets at {limit_reset}")
                     return {'score': None, 'error': 'GitHub API rate limit hit'}
 
                 user_data = user_resp.json()
@@ -49,6 +60,7 @@ class GitHubAnalyzer:
         except httpx.TimeoutException:
             return {'score': None, 'error': 'GitHub API timeout'}
         except Exception as e:
+            print(f"[GitHub] Error fetching {username}: {str(e)}")
             return {'score': None, 'error': str(e)}
 
         relevance = self._compute_relevance(repos, job_criteria)
@@ -56,8 +68,8 @@ class GitHubAnalyzer:
         quality   = self._compute_quality(repos)
 
         final = 0.5 * relevance + 0.3 * activity + 0.2 * quality
-
-        return {
+        
+        result = {
             'score': round(min(final, 1.0), 4),
             'breakdown': {
                 'relevance': round(relevance, 4),
@@ -71,6 +83,10 @@ class GitHubAnalyzer:
                 'top_languages': self._top_languages(repos)[:5]
             }
         }
+
+        # Save to cache
+        self._cache[username] = {'ts': now_ts, 'data': result}
+        return result
 
     def _compute_relevance(self, repos: List[Dict], criteria: List[Dict]) -> float:
         if not repos or not criteria:

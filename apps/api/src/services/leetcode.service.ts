@@ -9,11 +9,20 @@ const mlClient = axios.create({
   headers: { 'X-Internal-Secret': ML_SECRET }
 });
 
+interface LeetCodeAnalysisResult {
+  score: number | null;
+  breakdown?: {
+    easy_solved: number; medium_solved: number; hard_solved: number;
+    ranking: number; streak: number; solve_score: number; rank_score: number;
+  };
+  error?: string;
+}
+
 export class LeetCodeService {
-  static async analyze(leetcodeUrl: string) {
+  static async analyze(leetcodeUrl: string): Promise<LeetCodeAnalysisResult> {
     try {
       const { data } = await mlClient.post('/leetcode/analyze', { url: leetcodeUrl });
-      return data as { score: number | null; error?: string };
+      return data as LeetCodeAnalysisResult;
     } catch (err) {
       console.error('LeetCode analysis failed', err);
       return { score: null };

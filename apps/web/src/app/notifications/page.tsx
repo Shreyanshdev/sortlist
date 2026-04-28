@@ -86,16 +86,55 @@ export default function NotificationsPage() {
             {notifications.map((n) => (
               <div
                 key={n._id}
-                className={`bg-white border rounded-xl p-4 transition-all ${n.read ? "border-gray-100 opacity-60" : "border-indigo-100 shadow-sm"}`}
+                className={`bg-white border rounded-2xl p-5 transition-all ${n.read ? "border-gray-100 opacity-60" : "border-indigo-100 shadow-sm"}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${typeColor[n.type] || "bg-gray-50 text-gray-600"}`}>
+                    <span className={`inline-block text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg ${typeColor[n.type] || "bg-gray-50 text-gray-600"}`}>
                       {typeLabel[n.type] || n.type}
                     </span>
-                    <p className="text-sm text-gray-700 mt-2">{n.payload.message || JSON.stringify(n.payload)}</p>
+                    <p className="text-sm font-semibold text-gray-900 mt-3">{n.payload.message}</p>
+                    
+                    {/* Detailed Payload */}
+                    {(n.type === "CANDIDATE_SELECTED" || n.type === "CANDIDATE_REJECTED") && (
+                      <div className="mt-4 pt-4 border-t border-gray-50 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`text-2xl font-black ${n.type === "CANDIDATE_SELECTED" ? "text-emerald-500" : "text-amber-500"}`}>
+                            {(n.payload.finalScore * 100).toFixed(0)}
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter leading-tight">Composite<br />Score</div>
+                        </div>
+
+                        {n.payload.explanation && (
+                          <p className="text-xs text-gray-500 italic leading-relaxed">"{n.payload.explanation}"</p>
+                        )}
+
+                        {n.payload.strengths?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {n.payload.strengths.map((s: string, i: number) => (
+                              <span key={i} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-md border border-emerald-100">
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {n.payload.suggestions?.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">Suggestions to improve:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {n.payload.suggestions.map((s: string, i: number) => (
+                                <span key={i} className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-md border border-amber-100">
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className="text-xs text-gray-400 shrink-0">
+                  <span className="text-[10px] font-bold text-gray-400 shrink-0 mt-1 uppercase tracking-tighter">
                     {new Date(n.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                   </span>
                 </div>

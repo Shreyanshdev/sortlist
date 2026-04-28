@@ -9,12 +9,14 @@ export class ApplyController {
       const candidateId = req.user!.id as string;
       const jobId = req.params.id as string;
       const file = req.file;
+      const githubUrl = req.body?.githubUrl || undefined;
+      const leetcodeUrl = req.body?.leetcodeUrl || undefined;
 
       if (!file) {
         throw new AppError('No resume file provided', 400);
       }
 
-      const result = await ApplyService.applyToJob(candidateId, jobId, file);
+      const result = await ApplyService.applyToJob(candidateId, jobId, file, githubUrl, leetcodeUrl);
       res.status(201).json(result);
     } catch (err) {
       next(err);

@@ -12,7 +12,9 @@ export class ApplyService {
   static async applyToJob(
     candidateId: string,
     jobId: string,
-    file: Express.Multer.File
+    file: Express.Multer.File,
+    githubUrl?: string,
+    leetcodeUrl?: string
   ) {
     const job = await Job.findById(jobId);
     if (!job) throw new AppError('Job not found', 404);
@@ -55,7 +57,9 @@ export class ApplyService {
       candidateId: new Types.ObjectId(candidateId),
       jobId:       new Types.ObjectId(jobId),
       resumeId:    resume._id,
-      status:      'APPLIED'
+      status:      'APPLIED',
+      ...(githubUrl ? { githubUrl } : {}),
+      ...(leetcodeUrl ? { leetcodeUrl } : {}),
     });
 
     await Job.findByIdAndUpdate(jobId, { $inc: { applicantCount: 1 } });
@@ -67,17 +71,23 @@ export class ApplyService {
     const applications = await Application.find({
       candidateId: new Types.ObjectId(candidateId)
     })
-      .populate<{ jobId: IJob }>('jobId', 'title deadline description analyseStatus')
+      .populate({
+        path: 'jobId',
+        select: 'title deadline description analyseStatus recruiterId',
+        populate: { path: 'recruiterId', select: 'recruiterProfile.companyName' }
+      })
       .populate('resultId')
       .sort({ appliedAt: -1 })
       .lean();
 
     return applications.map(app => {
-      const job = app.jobId as IJob;
+      const job = app.jobId as any;
       const now = new Date();
       return {
         applicationId: app._id,
         jobTitle:      job.title,
+        companyName:   job.recruiterId?.recruiterProfile?.companyName ?? 'Unknown Company',
+        jobDescription: job.description,
         jobDeadline:   job.deadline,
         deadlinePassed: job.deadline < now,
         analyseStatus: job.analyseStatus,

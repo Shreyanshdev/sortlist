@@ -20,7 +20,11 @@ def parse_resume(req: ParseRequest):
         print(f"[Parse] Received {len(file_bytes)} bytes, type={req.file_type}")
         
         result = parser.parse(file_bytes, req.file_type)
-        print(f"[Parse] Success: {len(result.get('sentences', []))} sentences extracted")
+        links = result.get('links', {})
+        print(f"[Parse] Success: {len(result.get('sentences', []))} sentences, "
+              f"links: {len(links.get('github',[]))} GitHub, "
+              f"{len(links.get('leetcode',[]))} LeetCode, "
+              f"{len(links.get('repos',[]))} repos")
         return result
     except Exception as e:
         print(f"[Parse] Failed: {traceback.format_exc()}")

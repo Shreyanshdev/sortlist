@@ -28,6 +28,12 @@ export interface IResume extends Document {
   rawText?:      string;
   parsedSections?: IParsedSections;
   sentences?:    string[];
+  extractedLinks?: {
+    github:   string[];
+    leetcode: string[];
+    linkedin: string[];
+    repos:    string[];
+  };
   embeddingCached: boolean;
   errorMessage?: string;
   uploadedAt:    Date;
@@ -52,6 +58,12 @@ const ResumeSchema = new Schema<IResume>({
     education: String, projects: String, certifications: String, other: String
   },
   sentences:      [String],
+  extractedLinks: {
+    github:   [String],
+    leetcode: [String],
+    linkedin: [String],
+    repos:    [String]
+  },
   embeddingCached: { type: Boolean, default: false },
   errorMessage:   String,
   uploadedAt:     { type: Date, default: Date.now },

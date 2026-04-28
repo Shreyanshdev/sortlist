@@ -1,6 +1,8 @@
 import httpx
 import math
 import re
+import asyncio
+from datetime import datetime
 from typing import Optional, Dict
 
 LEETCODE_GQL = "https://leetcode.com/graphql"
@@ -31,6 +33,9 @@ query getUserProfile($username: String!) {
 
 class LeetCodeAnalyzer:
 
+    def __init__(self):
+        self._cache = {}
+
     def extract_username(self, url: str) -> Optional[str]:
         match = re.search(r'leetcode\.com/(?:u/)?([A-Za-z0-9_-]+)(?:/|$)', url)
         return match.group(1) if match else None
@@ -40,7 +45,18 @@ class LeetCodeAnalyzer:
         if not username:
             return {'score': None, 'error': 'Invalid LeetCode URL'}
 
+        # ── Caching Logic ──────────────────────────────────────────────────
+        now_ts = datetime.now().timestamp()
+        if username in self._cache:
+            entry = self._cache[username]
+            if now_ts - entry['ts'] < 86400:  # 24 hour cache
+                print(f"[LeetCode] Using cached result for {username}")
+                return entry['data']
+
         try:
+            # Respect LeetCode by adding a small delay to avoid aggressive scraping patterns
+            await asyncio.sleep(0.5)
+
             async with httpx.AsyncClient(timeout=12.0) as client:
                 resp = await client.post(
                     LEETCODE_GQL,
@@ -66,10 +82,18 @@ class LeetCodeAnalyzer:
 
         except httpx.TimeoutException:
             return {'score': None, 'error': 'LeetCode API timeout'}
+        except httpx.ConnectError:
+            return {'score': None, 'error': 'LeetCode API connection failed — service may be unreachable'}
         except Exception as e:
-            return {'score': None, 'error': str(e)}
+            # Catch-all: DNS errors, SSL, JSON decode, anything unexpected
+            print(f"[LeetCode] Unexpected error for {username}: {e}")
+            return {'score': None, 'error': f'LeetCode analysis failed: {str(e)}'}
 
-        return self._compute_score(user, username)
+        result = self._compute_score(user, username)
+        
+        # Save to cache
+        self._cache[username] = {'ts': now_ts, 'data': result}
+        return result
 
     def _compute_score(self, user: Dict, username: str) -> Dict:
         stats = user.get('submitStats', {}).get('acSubmissionNum', [])

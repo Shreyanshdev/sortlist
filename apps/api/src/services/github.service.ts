@@ -9,11 +9,18 @@ const mlClient = axios.create({
   headers: { 'X-Internal-Secret': ML_SECRET }
 });
 
+interface GitHubAnalysisResult {
+  score: number | null;
+  breakdown?: { relevance: number; activity: number; quality: number };
+  meta?: { top_languages: string[]; public_repos: number; followers: number };
+  error?: string;
+}
+
 export class GitHubService {
-  static async analyze(githubUrl: string, criteria: any[]) {
+  static async analyze(githubUrl: string, criteria: any[]): Promise<GitHubAnalysisResult> {
     try {
       const { data } = await mlClient.post('/github/analyze', { url: githubUrl, criteria });
-      return data as { score: number | null; error?: string };
+      return data as GitHubAnalysisResult;
     } catch (err) {
       console.error('GitHub analysis failed', err);
       return { score: null };

@@ -1,3 +1,5 @@
+import { Application } from '../models/application.model';
+import { Types } from 'mongoose';
 import { MLService } from '../services/ml.service';
 import { GitHubService } from '../services/github.service';
 import { LeetCodeService } from '../services/leetcode.service';
@@ -17,9 +19,12 @@ async function processResume(data: {
   criteria: any[];
   githubUrl: string | null;
   leetcodeUrl: string | null;
+  enableGithubInspection: boolean;
+  enableLeetcodeInspection: boolean;
   totalInJob: number;
 }) {
-  const { jobId, resumeId, mimeType, criteria, githubUrl, leetcodeUrl } = data;
+  const { jobId, resumeId, mimeType, criteria, githubUrl, leetcodeUrl,
+          enableGithubInspection, enableLeetcodeInspection } = data;
 
   try {
     await Resume.findByIdAndUpdate(resumeId, { status: 'PARSING' });
@@ -52,19 +57,92 @@ async function processResume(data: {
       status: 'PARSED',
       rawText: parseResult.rawText,
       parsedSections: parseResult.sections,
-      sentences: parseResult.sentences
+      sentences: parseResult.sentences,
+      extractedLinks: parseResult.links || { github: [], leetcode: [], linkedin: [], repos: [] }
     });
 
     // Step 3: External signals (GitHub + LeetCode)
+    // Only run if the recruiter enabled the corresponding toggle
+    // URL priority: application-submitted URL > candidate profile URL > extracted from resume > null
+
+    // Also check if the resume/application/result has directly submitted URLs
+    const resumeFullDoc = await Resume.findById(resumeId).select('candidateId githubUrl leetcodeUrl').lean();
+    
+    // Check Application (for candidates)
+    const applicationDoc = resumeFullDoc?.candidateId
+      ? await Application.findOne({
+          candidateId: resumeFullDoc.candidateId,
+          jobId: new Types.ObjectId(jobId)
+        }).select('githubUrl leetcodeUrl').lean()
+      : null;
+
+    // Check AnalysisResult (for bulk uploads or candidate overrides)
+    const resultDoc = await AnalysisResult.findOne({ resumeId }).select('githubUrl leetcodeUrl').lean();
+
+    console.log(`[Analyse] ── URL Resolution for resume ${resumeId} ──`);
+    console.log(`[Analyse]   Toggles        → GitHub: ${enableGithubInspection ? 'ON' : 'OFF'}, LeetCode: ${enableLeetcodeInspection ? 'ON' : 'OFF'}`);
+    console.log(`[Analyse]   Application    → GitHub: ${(applicationDoc as any)?.githubUrl || 'none'}, LeetCode: ${(applicationDoc as any)?.leetcodeUrl || 'none'}`);
+    console.log(`[Analyse]   Result Store   → GitHub: ${(resultDoc as any)?.githubUrl || 'none'}, LeetCode: ${(resultDoc as any)?.leetcodeUrl || 'none'}`);
+    console.log(`[Analyse]   Profile        → GitHub: ${githubUrl || 'none'}, LeetCode: ${leetcodeUrl || 'none'}`);
+    console.log(`[Analyse]   Resume parsed  → GitHub: ${parseResult.links?.github || 'none'}, LeetCode: ${parseResult.links?.leetcode || 'none'}`);
+
+    const resolvedGithubUrl = enableGithubInspection
+      ? ((applicationDoc as any)?.githubUrl || (resultDoc as any)?.githubUrl || githubUrl || parseResult.links?.github?.[0] || null)
+      : null;
+    const resolvedLeetcodeUrl = enableLeetcodeInspection
+      ? ((applicationDoc as any)?.leetcodeUrl || (resultDoc as any)?.leetcodeUrl || leetcodeUrl || parseResult.links?.leetcode?.[0] || null)
+      : null;
+
+    console.log(`[Analyse]   ✅ RESOLVED    → GitHub: ${resolvedGithubUrl || 'NONE'}, LeetCode: ${resolvedLeetcodeUrl || 'NONE'}`);
+
+    if (!enableGithubInspection && !enableLeetcodeInspection) {
+      console.log(`[Analyse] External inspection disabled for this job — skipping GitHub/LeetCode`);
+    }
+
     await Resume.findByIdAndUpdate(resumeId, { status: 'EMBEDDING' });
 
     const [githubResult, leetcodeResult] = await Promise.allSettled([
-      githubUrl ? GitHubService.analyze(githubUrl, criteria) : Promise.resolve(null),
-      leetcodeUrl ? LeetCodeService.analyze(leetcodeUrl) : Promise.resolve(null)
+      resolvedGithubUrl ? GitHubService.analyze(resolvedGithubUrl, criteria) : Promise.resolve(null),
+      resolvedLeetcodeUrl ? LeetCodeService.analyze(resolvedLeetcodeUrl) : Promise.resolve(null)
     ]);
 
     const githubScore = githubResult.status === 'fulfilled' ? githubResult.value?.score ?? null : null;
     const leetcodeScore = leetcodeResult.status === 'fulfilled' ? leetcodeResult.value?.score ?? null : null;
+
+    // Log external analysis results
+    if (githubResult.status === 'fulfilled' && githubResult.value) {
+      console.log(`[Analyse]   GitHub result  → Score: ${githubResult.value.score}, Error: ${githubResult.value.error || 'none'}`);
+    } else if (githubResult.status === 'rejected') {
+      console.log(`[Analyse]   GitHub result  → FAILED: ${githubResult.reason}`);
+    }
+    if (leetcodeResult.status === 'fulfilled' && leetcodeResult.value) {
+      console.log(`[Analyse]   LeetCode result → Score: ${leetcodeResult.value.score}, Error: ${leetcodeResult.value.error || 'none'}`);
+    } else if (leetcodeResult.status === 'rejected') {
+      console.log(`[Analyse]   LeetCode result → FAILED: ${leetcodeResult.reason}`);
+    }
+
+    // Extract full breakdowns for recruiter analysis modal
+    const githubData = githubResult.status === 'fulfilled' ? githubResult.value : null;
+    const leetcodeData = leetcodeResult.status === 'fulfilled' ? leetcodeResult.value : null;
+
+    const githubBreakdown = githubData?.breakdown ? {
+      relevance:    githubData.breakdown.relevance ?? 0,
+      activity:     githubData.breakdown.activity ?? 0,
+      quality:      githubData.breakdown.quality ?? 0,
+      topLanguages: githubData?.meta?.top_languages ?? [],
+      publicRepos:  githubData?.meta?.public_repos ?? 0,
+      followers:    githubData?.meta?.followers ?? 0
+    } : undefined;
+
+    const leetcodeBreakdown = leetcodeData?.breakdown ? {
+      easySolved:   leetcodeData.breakdown.easy_solved ?? 0,
+      mediumSolved: leetcodeData.breakdown.medium_solved ?? 0,
+      hardSolved:   leetcodeData.breakdown.hard_solved ?? 0,
+      ranking:      leetcodeData.breakdown.ranking ?? 999999,
+      streak:       leetcodeData.breakdown.streak ?? 0,
+      solveScore:   leetcodeData.breakdown.solve_score ?? 0,
+      rankScore:    leetcodeData.breakdown.rank_score ?? 0
+    } : undefined;
 
     // Step 4: Score via ML
     const scoreResult = await MLService.scoreResume({
@@ -85,6 +163,8 @@ async function processResume(data: {
         resumeScore: scoreResult.resume_score,
         githubScore,
         leetcodeScore,
+        githubBreakdown,
+        leetcodeBreakdown,
         finalScore: scoreResult.final_score,
         criteriaScores: Object.entries(scoreResult.criteria_scores).map(([criterionId, d]: [string, any]) => ({
           criterionId,
@@ -168,6 +248,8 @@ export async function runAnalysis(resumeJobs: Array<{
   criteria: any[];
   githubUrl: string | null;
   leetcodeUrl: string | null;
+  enableGithubInspection: boolean;
+  enableLeetcodeInspection: boolean;
   totalInJob: number;
 }>) {
   if (resumeJobs.length === 0) return;

@@ -6,8 +6,11 @@ export class RecruiterController {
   static async createJob(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const recruiterId = req.user!.id as string;
-      const { title, description, deadline, criteria } = req.body;
-      const result = await RecruiterService.createJob(recruiterId, { title, description, deadline, criteria });
+      const { title, description, deadline, criteria, enableGithubInspection, enableLeetcodeInspection } = req.body;
+      const result = await RecruiterService.createJob(recruiterId, {
+        title, description, deadline, criteria,
+        enableGithubInspection, enableLeetcodeInspection
+      });
       res.status(201).json(result);
     } catch (err) {
       next(err);

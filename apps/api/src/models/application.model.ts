@@ -7,6 +7,8 @@ export interface IApplication extends Document {
   jobId:       Types.ObjectId;
   resumeId:    Types.ObjectId;
   status:      ApplicationStatus;
+  githubUrl?:  string;
+  leetcodeUrl?: string;
   resultId?:   Types.ObjectId;
   notifiedAt?: Date;
   appliedAt:   Date;
@@ -17,6 +19,8 @@ const ApplicationSchema = new Schema<IApplication>({
   jobId:       { type: Schema.Types.ObjectId, ref: 'Job',    required: true },
   resumeId:    { type: Schema.Types.ObjectId, ref: 'Resume', required: true },
   status:      { type: String, enum: ['APPLIED','UNDER_REVIEW','SELECTED','REJECTED'], default: 'APPLIED' },
+  githubUrl:   { type: String },
+  leetcodeUrl: { type: String },
   resultId:    { type: Schema.Types.ObjectId, ref: 'AnalysisResult' },
   notifiedAt:  Date,
   appliedAt:   { type: Date, default: Date.now }

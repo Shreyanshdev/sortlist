@@ -14,8 +14,11 @@ export interface IJob extends Document {
   criteria:      ICriteria[];
   deadline:      Date;
   isActive:      boolean;
+  enableGithubInspection:   boolean;
+  enableLeetcodeInspection: boolean;
   analyseStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETE';
   analyseTriggeredAt?: Date;
+  feedbackSentAt?: Date;
   applicantCount: number;
   createdAt:     Date;
   updatedAt:     Date;
@@ -33,8 +36,11 @@ const JobSchema = new Schema<IJob>({
   }],
   deadline:       { type: Date, required: true },
   isActive:       { type: Boolean, default: true },
+  enableGithubInspection:   { type: Boolean, default: false },
+  enableLeetcodeInspection: { type: Boolean, default: false },
   analyseStatus:  { type: String, enum: ['NOT_STARTED','IN_PROGRESS','COMPLETE'], default: 'NOT_STARTED' },
   analyseTriggeredAt: Date,
+  feedbackSentAt: Date,
   applicantCount: { type: Number, default: 0 }
 }, { timestamps: true });
 

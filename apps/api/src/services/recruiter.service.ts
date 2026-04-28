@@ -15,7 +15,14 @@ export class RecruiterService {
 
   static async createJob(
     recruiterId: string,
-    data: { title: string; description: string; deadline: string; criteria: any[] }
+    data: {
+      title: string;
+      description: string;
+      deadline: string;
+      criteria: any[];
+      enableGithubInspection?: boolean;
+      enableLeetcodeInspection?: boolean;
+    }
   ) {
     const recruiter = await User.findById(recruiterId);
     if (!recruiter || recruiter.recruiterProfile?.status !== 'VERIFIED') {
@@ -28,6 +35,8 @@ export class RecruiterService {
       description: data.description,
       deadline:    new Date(data.deadline),
       criteria:    data.criteria,
+      enableGithubInspection:   data.enableGithubInspection ?? false,
+      enableLeetcodeInspection: data.enableLeetcodeInspection ?? false,
     });
 
     return { jobId: job._id, title: job.title };
@@ -135,11 +144,20 @@ export class RecruiterService {
       let githubUrl: string | null = null;
       let leetcodeUrl: string | null = null;
 
+      // Only resolve external URLs if the corresponding toggle is ON
       if (resume.candidateId) {
         const candidate = await User.findById(resume.candidateId).select('candidateProfile').lean();
-        githubUrl   = candidate?.candidateProfile?.githubUrl ?? null;
-        leetcodeUrl = candidate?.candidateProfile?.leetcodeUrl ?? null;
+        if (job.enableGithubInspection) {
+          githubUrl = candidate?.candidateProfile?.githubUrl ?? null;
+        }
+        if (job.enableLeetcodeInspection) {
+          leetcodeUrl = candidate?.candidateProfile?.leetcodeUrl ?? null;
+        }
       }
+
+      console.log(`[RecruiterService] Triggering analysis for resume ${resume._id} (Job: ${jobId})`);
+      console.log(`[RecruiterService]   - Profile GitHub: ${githubUrl || 'none'}`);
+      console.log(`[RecruiterService]   - Profile LeetCode: ${leetcodeUrl || 'none'}`);
 
       resumeJobs.push({
         jobId:      jobId,
@@ -148,6 +166,8 @@ export class RecruiterService {
         criteria:   job.criteria,
         githubUrl,
         leetcodeUrl,
+        enableGithubInspection:   job.enableGithubInspection,
+        enableLeetcodeInspection: job.enableLeetcodeInspection,
         totalInJob: resumes.length
       });
     }
@@ -167,12 +187,23 @@ export class RecruiterService {
     const results = await AnalysisResult.find({ jobId, status: 'COMPLETE' })
       .sort({ finalScore: -1 })
       .populate('candidateId', 'candidateProfile.name candidateProfile.githubUrl candidateProfile.linkedinUrl')
+      .populate('resumeId', 'fileUrl')
       .lean();
+
+    // Count resumes that haven't been analyzed yet (new uploads since last analysis)
+    const totalResumes = await Resume.countDocuments({
+      jobId: new Types.ObjectId(jobId),
+      status: { $ne: 'FAILED' }
+    });
+    const analyzedCount = await AnalysisResult.countDocuments({ jobId });
+    const newUnanalyzedCount = Math.max(0, totalResumes - analyzedCount);
 
     return {
       jobTitle:      job.title,
       analyseStatus: job.analyseStatus,
       totalResults:  results.length,
+      newUnanalyzedCount,
+      feedbackSentAt: job.feedbackSentAt ?? null,
       rankings: results.map((r, i) => ({
         rank:          r.rank ?? i + 1,
         resultId:      r._id,
@@ -180,12 +211,16 @@ export class RecruiterService {
           ? r.anonymousName
           : (r.candidateId as any)?.candidateProfile?.name ?? 'Unknown',
         isAnonymous:   r.isAnonymous,
+        isFromPortal:  !r.isAnonymous && !!r.candidateId,
+        resumeFileUrl: (r.resumeId as any)?.fileUrl ?? null,
         finalScore:    r.finalScore,
         scoreBreakdown: {
           resume:   r.resumeScore,
           github:   r.githubScore,
           leetcode: r.leetcodeScore
         },
+        githubBreakdown: r.githubBreakdown,
+        leetcodeBreakdown: r.leetcodeBreakdown,
         criteriaScores: r.criteriaScores,
         strengths:    r.strengths,
         weaknesses:   r.weaknesses,
@@ -206,15 +241,22 @@ export class RecruiterService {
     if (job.analyseStatus !== 'COMPLETE') {
       throw new AppError('Analysis not yet complete', 400);
     }
+    if (job.feedbackSentAt) {
+      throw new AppError('Feedback has already been sent for this job. This action cannot be undone.', 409);
+    }
 
+    // Mark selected candidates
     await AnalysisResult.updateMany(
       { jobId: new Types.ObjectId(jobId) },
-      { isCandidateSelected: false }
+      { isCandidateSelected: false, feedbackSentAt: new Date() }
     );
     await AnalysisResult.updateMany(
       { _id: { $in: selectedResultIds }, jobId: new Types.ObjectId(jobId) },
       { isCandidateSelected: true, feedbackSentAt: new Date() }
     );
+
+    // Mark job as feedback sent (immutable)
+    await Job.findByIdAndUpdate(jobId, { feedbackSentAt: new Date() });
 
     const selectedResults = await AnalysisResult.find({
       _id: { $in: selectedResultIds }
@@ -240,7 +282,10 @@ export class RecruiterService {
           jobId,
           jobTitle: job.title,
           message:  `Congratulations! You have been shortlisted for "${job.title}".`,
-          finalScore: result.finalScore
+          finalScore:  result.finalScore,
+          explanation: result.explanation,
+          strengths:   result.strengths,
+          weaknesses:  result.weaknesses
         }
       }]);
     }
@@ -256,10 +301,11 @@ export class RecruiterService {
         type:    'CANDIDATE_REJECTED',
         payload: {
           jobId,
-          jobTitle:    job.title,
-          message:     `Thank you for applying to "${job.title}". Keep improving!`,
-          suggestions: result.suggestions ?? [],
-          finalScore:  result.finalScore
+          jobTitle: job.title,
+          message:  `Thank you for applying to "${job.title}". Unfortunately, you were not selected at this time.`,
+          finalScore:  result.finalScore,
+          explanation: result.explanation,
+          suggestions: result.suggestions
         }
       }]);
     }
@@ -267,3 +313,4 @@ export class RecruiterService {
     return { notified: selectedResultIds.length + rejectedResults.length };
   }
 }
+

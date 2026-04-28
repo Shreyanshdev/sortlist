@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import Navbar from "@/components/Navbar";
 import toast from "react-hot-toast";
-import { CheckCircle2, XCircle, Clock, ChevronDown, ChevronUp, Star } from "lucide-react";
+import { CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, Star, Sparkles, Loader2 } from "lucide-react";
 
 interface Application {
   applicationId: string;
   jobTitle: string;
+  companyName: string;
+  jobDescription: string;
   jobDeadline: string;
   deadlinePassed: boolean;
   analyseStatus: string;
@@ -36,103 +38,152 @@ export default function ApplicationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statusConfig: Record<string, { icon: typeof CheckCircle2; color: string; bg: string; label: string }> = {
-    APPLIED:      { icon: Clock,        color: "text-blue-600",   bg: "bg-blue-50",   label: "Applied" },
-    UNDER_REVIEW: { icon: Clock,        color: "text-amber-600",  bg: "bg-amber-50",  label: "Under Review" },
-    SELECTED:     { icon: CheckCircle2, color: "text-green-600",  bg: "bg-green-50",  label: "Selected" },
-    REJECTED:     { icon: XCircle,      color: "text-red-600",    bg: "bg-red-50",    label: "Not Selected" },
+  const statusConfig: Record<string, { icon: typeof CheckCircle; color: string; bg: string; label: string }> = {
+    APPLIED: { icon: Clock, color: "text-blue-600", bg: "bg-blue-50", label: "Applied" },
+    UNDER_REVIEW: { icon: Clock, color: "text-amber-600", bg: "bg-amber-50", label: "Under Review" },
+    SELECTED: { icon: CheckCircle, color: "text-green-600", bg: "bg-green-50", label: "Selected" },
+    REJECTED: { icon: XCircle, color: "text-red-600", bg: "bg-red-50", label: "Not Selected" },
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#FDFCFB] relative overflow-hidden font-sans">
+      {/* Background Decorative Glows */}
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-orange-100/30 rounded-full blur-[120px]" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-orange-50/40 rounded-full blur-[100px]" />
+
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">My Applications</h1>
-        <p className="text-sm text-gray-500 mb-8">Track the status of your job applications</p>
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-32 pb-20 relative z-10">
+        <div className="mb-10 text-center sm:text-left">
+          <h1 className="text-3xl font-extrabold text-[#111827] tracking-tight">My Applications</h1>
+          <p className="text-gray-500 font-medium mt-1">Track your progress and view AI-powered analysis</p>
+        </div>
 
         {loading ? (
-          <div className="text-center py-20 text-gray-400 text-sm">Loading...</div>
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+            <Clock size={32} className="animate-spin text-orange-500 mb-4" />
+            <span className="text-sm font-medium tracking-wide uppercase font-bold">Fetching Applications...</span>
+          </div>
         ) : apps.length === 0 ? (
-          <div className="text-center py-20 text-gray-400 text-sm">You haven&apos;t applied to any jobs yet.</div>
+          <div className="text-center py-24 bg-white/40 backdrop-blur-md rounded-[32px] border border-white border-dashed">
+            <Clock size={40} className="mx-auto text-gray-200 mb-4" />
+            <p className="text-gray-400 font-medium italic">You haven&apos;t applied to any jobs yet.</p>
+          </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {apps.map((app) => {
               const cfg = statusConfig[app.applicationStatus] || statusConfig.APPLIED;
               const Icon = cfg.icon;
               const isExpanded = expanded === app.applicationId;
 
               return (
-                <div key={app.applicationId} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+                <div key={app.applicationId} className="group bg-white/70 backdrop-blur-xl border border-white rounded-[28px] overflow-hidden hover:shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-500">
                   <button
                     onClick={() => setExpanded(isExpanded ? null : app.applicationId)}
-                    className="w-full p-5 flex items-center justify-between text-left"
+                    className="w-full p-6 flex items-center justify-between text-left cursor-pointer transition-all active:scale-[0.99]"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center`}>
-                        <Icon size={18} className={cfg.color} />
+                    <div className="flex items-center gap-5">
+                      <div className={`w-14 h-14 rounded-2xl ${cfg.bg} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform`}>
+                        <Icon size={24} className={cfg.color} />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-gray-900 text-sm">{app.jobTitle}</h3>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          Applied {new Date(app.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                        </p>
+                        <h3 className="font-extrabold text-[#111827] text-[18px] tracking-tight group-hover:text-orange-600 transition-colors">{app.jobTitle}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[14px] text-orange-500 font-bold">{app.companyName}</span>
+                          <span className="text-gray-200 text-xs">•</span>
+                          <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+                            Applied {new Date(app.appliedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                    <div className="flex items-center gap-4">
+                      <span className={`hidden sm:inline-flex text-[11px] font-bold px-4 py-1.5 rounded-full ${cfg.bg} ${cfg.color} border border-white/50 uppercase tracking-widest shadow-sm`}>
                         {cfg.label}
                       </span>
-                      {isExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                      {isExpanded ? <ChevronUp size={20} className="text-gray-300" /> : <ChevronDown size={20} className="text-gray-300" />}
                     </div>
                   </button>
 
                   {isExpanded && (
-                    <div className="px-5 pb-5 border-t border-gray-50 pt-4">
+                    <div className="px-6 pb-8 border-t border-gray-100/50 pt-6 animate-in fade-in slide-in-from-top-4 duration-500">
+                      <div className="mb-8">
+                        <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 ml-1">Context</h4>
+                        <div className="bg-orange-50/30 backdrop-blur-sm rounded-2xl p-5 border border-orange-100/30 text-[14px] text-gray-600 leading-relaxed whitespace-pre-wrap italic">
+                          {app.jobDescription}
+                        </div>
+                      </div>
+
                       {app.result ? (
-                        <div className="space-y-4">
-                          {/* Score */}
-                          <div className="flex items-center gap-3">
-                            <div className="text-3xl font-bold text-indigo-600">
-                              {(app.result.finalScore * 100).toFixed(0)}
+                        <div className="space-y-8">
+                          <div className="flex items-center gap-6 bg-white/60 backdrop-blur-md rounded-[24px] p-6 border border-white shadow-sm">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[44px] font-black text-orange-600 leading-none">
+                                {(app.result.finalScore * 100).toFixed(0)}
+                              </span>
+                              <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mt-1">Score</span>
                             </div>
-                            <div className="text-xs text-gray-500">out of 100<br />composite score</div>
+                            <div className="h-12 w-px bg-gray-100" />
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-900 uppercase tracking-widest mb-1">Semantic Match Result</p>
+                              <p className="text-[13px] text-gray-500 font-medium leading-relaxed">
+                                Our AI analyzed your resume, GitHub commits, and LeetCode performance against the job requirements.
+                              </p>
+                            </div>
                           </div>
 
-                          {/* Explanation */}
                           {app.result.explanation && (
-                            <p className="text-sm text-gray-600 bg-gray-50 rounded-xl p-4">{app.result.explanation}</p>
-                          )}
-
-                          {/* Strengths */}
-                          {app.result.strengths?.length > 0 && (
                             <div>
-                              <h4 className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1"><Star size={12} /> Strengths</h4>
-                              <ul className="space-y-1">
-                                {app.result.strengths.map((s, i) => (
-                                  <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
-                                    <span className="text-green-500 mt-0.5">•</span> {s}
-                                  </li>
-                                ))}
-                              </ul>
+                              <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 ml-1">AI Feedback</h4>
+                              <div className="text-[14px] text-gray-700 leading-relaxed bg-[#111827] text-white rounded-[24px] p-6 shadow-xl relative overflow-hidden">
+                                <Sparkles size={40} className="absolute top-[-10px] right-[-10px] text-white/5" />
+                                <span className="relative z-10 leading-relaxed font-medium block">
+                                  "{app.result.explanation}"
+                                </span>
+                              </div>
                             </div>
                           )}
 
-                          {/* Suggestions */}
-                          {app.result.suggestions?.length > 0 && (
-                            <div>
-                              <h4 className="text-xs font-semibold text-amber-700 mb-2">Suggestions to improve</h4>
-                              <ul className="space-y-1">
-                                {app.result.suggestions.map((s, i) => (
-                                  <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
-                                    <span className="text-amber-500 mt-0.5">•</span> {s}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            {app.result.strengths?.length > 0 && (
+                              <div className="space-y-4">
+                                <h4 className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                                  <CheckCircle size={14} /> Key Strengths
+                                </h4>
+                                <div className="space-y-2">
+                                  {app.result.strengths.map((s, i) => (
+                                    <div key={i} className="px-4 py-3 bg-emerald-50/50 text-emerald-800 text-[13px] font-bold rounded-xl border border-emerald-100/50 leading-snug">
+                                      {s}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {app.result.suggestions?.length > 0 && (
+                              <div className="space-y-4">
+                                <h4 className="text-[10px] font-bold text-orange-600 uppercase tracking-widest flex items-center gap-2 ml-1">
+                                  <Star size={14} /> Growth Tips
+                                </h4>
+                                <div className="space-y-2">
+                                  {app.result.suggestions.map((s, i) => (
+                                    <div key={i} className="px-4 py-3 bg-orange-50/50 text-orange-800 text-[13px] font-bold rounded-xl border border-orange-100/50 leading-snug">
+                                      {s}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
-                        <p className="text-sm text-gray-400">Results will appear here once the recruiter completes the analysis.</p>
+                        <div className="py-12 text-center bg-white/50 backdrop-blur-sm rounded-[32px] border border-dashed border-gray-200">
+                          <Loader2 size={40} className="mx-auto text-orange-200 mb-4 animate-pulse" />
+                          <p className="text-[15px] font-bold text-gray-500">Analysis in Progress</p>
+                          <p className="text-[13px] text-gray-400 mt-2 max-w-[280px] mx-auto font-medium">
+                            The semantic engine is currently processing your data. Check back in a few minutes!
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}

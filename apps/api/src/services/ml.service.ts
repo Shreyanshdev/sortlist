@@ -24,6 +24,12 @@ export class MLService {
       rawText: string;
       sections: Record<string, string>;
       sentences: string[];
+      links: {
+        github: string[];
+        leetcode: string[];
+        linkedin: string[];
+        repos: string[];
+      };
     };
   }
 

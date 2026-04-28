@@ -19,6 +19,23 @@ export interface IAnalysisResult extends Document {
   resumeScore?:   number;
   githubScore?:   number;
   leetcodeScore?: number;
+  githubBreakdown?: {
+    relevance: number;
+    activity:  number;
+    quality:   number;
+    topLanguages: string[];
+    publicRepos:  number;
+    followers:    number;
+  };
+  leetcodeBreakdown?: {
+    easySolved:   number;
+    mediumSolved: number;
+    hardSolved:   number;
+    ranking:      number;
+    streak:       number;
+    solveScore:   number;
+    rankScore:    number;
+  };
   finalScore?:    number;
   criteriaScores: ICriteriaScore[];
   strengths?:    string[];
@@ -29,6 +46,8 @@ export interface IAnalysisResult extends Document {
   isCandidateSelected: boolean;
   recruiterNote?: string;
   feedbackSentAt?: Date;
+  githubUrl?:     string;
+  leetcodeUrl?:   string;
   status: 'PENDING' | 'PROCESSING' | 'COMPLETE' | 'FAILED';
   errorMessage?: string;
   createdAt: Date;
@@ -44,6 +63,23 @@ const AnalysisResultSchema = new Schema<IAnalysisResult>({
   resumeScore:  Number,
   githubScore:  Number,
   leetcodeScore: Number,
+  githubBreakdown: {
+    relevance:    Number,
+    activity:     Number,
+    quality:      Number,
+    topLanguages: [String],
+    publicRepos:  Number,
+    followers:    Number
+  },
+  leetcodeBreakdown: {
+    easySolved:   Number,
+    mediumSolved: Number,
+    hardSolved:   Number,
+    ranking:      Number,
+    streak:       Number,
+    solveScore:   Number,
+    rankScore:    Number
+  },
   finalScore:   Number,
   criteriaScores: [{
     criterionId:     String,
@@ -62,6 +98,8 @@ const AnalysisResultSchema = new Schema<IAnalysisResult>({
   isCandidateSelected: { type: Boolean, default: false },
   recruiterNote: String,
   feedbackSentAt: Date,
+  githubUrl:     String,
+  leetcodeUrl:   String,
   status: { type: String, enum: ['PENDING','PROCESSING','COMPLETE','FAILED'], default: 'PENDING' },
   errorMessage: String
 }, { timestamps: true });
